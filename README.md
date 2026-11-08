@@ -33,3 +33,16 @@ Open this project in a recent Android Studio version with JDK 17 and Android SDK
 Ventoy: https://github.com/ventoy/Ventoy
 
 This project is not an official Ventoy release. Upstream code and bundled components must retain their applicable licenses and notices.
+
+## Current scaffold capabilities
+
+The current UI is dark by default and can list USB devices exposed by Android's USB Host API. It also opens Android's document picker to select a candidate ISO file. A JNI/CMake bridge is compiled as a placeholder boundary for future native integration.
+
+These are foundation features only. Selecting an ISO does not yet validate it, and USB discovery does not mean the app can install a bootloader or modify partitions.
+
+## Continuous integration and releases
+
+- Every push to `android-port` runs the Android CI workflow and attempts debug and release compilation.
+- Pushing a version tag such as `v0.1.0-alpha1` runs the release workflow and publishes build outputs to GitHub Releases.
+- The debug APK is installable for testing and uses the standard Android debug signing configuration.
+- The release variant is currently unsigned. A stable, dedicated signing key must be configured securely in GitHub Actions before publishing production updates.
