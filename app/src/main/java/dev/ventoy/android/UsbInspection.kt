@@ -23,6 +23,9 @@ internal object UsbInspection {
     private const val USB_ENDPOINT_XFER_BULK = 0x02
     private const val USB_DIR_IN = 0x80
 
+    internal fun isMassStorageInterfaceClass(interfaceClass: Int): Boolean =
+        interfaceClass == USB_CLASS_MASS_STORAGE
+
     fun inspect(device: UsbDevice): UsbDeviceInspection {
         val interfaces = (0 until device.interfaceCount).map { index ->
             val usbInterface = device.getInterface(index)
@@ -49,7 +52,7 @@ internal object UsbInspection {
 
         return UsbDeviceInspection(
             interfaces = interfaces,
-            hasMassStorageInterface = interfaces.any { it.interfaceClass == USB_CLASS_MASS_STORAGE }
+            hasMassStorageInterface = interfaces.any { isMassStorageInterfaceClass(it.interfaceClass) }
         )
     }
 }
