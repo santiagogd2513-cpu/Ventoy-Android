@@ -216,7 +216,7 @@ private fun UsbDeviceCard(device: UsbDevice) {
             )
             inspection.interfaces.forEach { usbInterface ->
                 Text(
-                    "Interfaz ${usbInterface.interfaceId}: clase %02X / subclase %02X / protocolo %02X · ${usbInterface.endpointCount} endpoint(s)".format(
+                    "Interfaz ${usbInterface.interfaceId}: clase %02X / subclase %02X / protocolo %02X · ${usbInterface.endpointCount} endpoint(s) · Bulk IN: ${if (usbInterface.hasBulkIn) "sí" else "no"} · Bulk OUT: ${if (usbInterface.hasBulkOut) "sí" else "no"}".format(
                         usbInterface.interfaceClass,
                         usbInterface.interfaceSubclass,
                         usbInterface.interfaceProtocol
