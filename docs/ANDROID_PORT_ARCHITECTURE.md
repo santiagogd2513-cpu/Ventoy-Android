@@ -2,23 +2,24 @@
 
 ## Current application boundary
 
-- **UI:** Kotlin + Jetpack Compose. The initial design uses a permanent dark Material 3 color scheme.
-- **USB discovery:** Android USB Host API through `UsbManager`. Discovery is informational only and does not imply raw disk access.
-- **ISO selection:** Android Storage Access Framework. The current implementation selects a document URI; it does not yet validate, copy, mount, parse, or write the image.
-- **Native boundary:** a small JNI/CMake shared library proves the Android NDK integration path. It is a status stub, not the Ventoy boot engine.
-- **Build:** GitHub Actions compiles debug and release APK variants using JDK 17, Gradle 8.9, Android SDK 35, CMake 3.22.1 and NDK 27.2.12479018.
+- **UI:** Kotlin + Jetpack Compose with a permanent dark Material 3 color scheme.
+- **USB discovery:** Android USB Host API through `UsbManager`. The app lists device IDs, vendor/product IDs, and interface descriptors. It can identify an interface declaring USB Mass Storage class 0x08; this is not raw block-device access.
+- **ISO selection:** Android Storage Access Framework. The app retains a read grant where supported and probes the ISO-9660 primary volume descriptor at byte offset 32768. This is read-only and does not establish bootability.
+- **Native boundary:** a small JNI/CMake shared library proves the Android NDK integration path. It remains a status stub, not the Ventoy boot engine.
+- **Tests:** JUnit unit tests cover valid and invalid ISO-9660 primary-volume-descriptor headers.
+- **Build:** GitHub Actions runs unit tests and compiles debug and release APK variants with JDK 17, Gradle 8.9, Android SDK 35, CMake 3.22.1 and NDK 27.2.12479018.
 
-## Phase 1 completion boundary
+## Upstream compatibility audit
 
-Phase 1 supplies a buildable Android shell and automation. It does not claim to implement Ventoy's bootloader, partition layout, ISO processing, or USB installation. No upstream Ventoy source or binary has been copied into the application yet.
+See [UPSTREAM_AUDIT.md](UPSTREAM_AUDIT.md) for the source revision and findings. The upstream Linux installer expects Linux device nodes, host utilities, partitioning/filesystem tools, and direct block-device operations. GRUB and Ventoy boot payloads form a separate boot-time layer. The Linux GUI utility uses Linux-specific system interfaces and cannot be treated as an Android library without replacing its host integration.
 
-The CI build currently compiles native libraries for Android's default NDK ABI set (arm64-v8a, armeabi-v7a, x86 and x86_64). Successful compilation is not equivalent to runtime testing on devices with those architectures.
+## Remaining Android integration constraints
 
-## Future integration constraints
+Android's public USB Host API exposes USB interfaces and endpoints; it does not grant arbitrary raw block-device access to a mass-storage LUN. A real installer must establish a supported, device-specific storage path before any partition or boot-sector operation can be implemented.
 
-The upstream Ventoy project contains boot-time components and host-side installation utilities. Android's public USB Host API exposes USB interfaces and endpoints; it does not grant arbitrary raw block-device access to a mass-storage LUN. A real installer must establish a supported, device-specific storage path before any partition or boot-sector operation can be implemented.
+A SAF URI is not necessarily a local filesystem path or seekable file. ISO readers must use ContentResolver streams/file descriptors and handle providers that cannot seek. The current probe is read-only and only checks one ISO-9660 metadata signature.
 
-Do not treat a USB device being visible in `UsbManager` as proof that it can be safely or completely prepared by this application. A no-root workflow remains the preferred first target, but cannot be promised until the Android device APIs and storage path are proven.
+A no-root workflow remains the preferred first target, but cannot be promised until a supported path is demonstrated on target hardware.
 
 ## Safety invariants
 
@@ -29,6 +30,8 @@ Do not treat a USB device being visible in `UsbManager` as proof that it can be 
 5. Do not claim success until read-back verification passes.
 6. Keep root-dependent capabilities optional and clearly separated from the normal, unprivileged mode.
 
-## ABI direction
+## Native integration direction
+
+Keep Android UI, SAF, and USB Host handling in Kotlin. Only move portable format or metadata code behind JNI after auditing dependencies and licenses. Linux-specific device I/O must be replaced by a separately validated Android storage adapter; do not compile Linux installer code unchanged with the NDK.
 
 All four default Android NDK ABIs currently compile in CI. Runtime validation on physical Android devices remains outstanding; ARM64 is the primary target for the first hardware validation.
