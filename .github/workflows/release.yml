@@ -36,7 +36,7 @@ jobs:
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "cmake;3.22.1" "ndk;27.2.12479018"
 
       - name: Build debug and release variants
-        run: gradle :app:assembleDebug :app:assembleRelease
+        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease
 
       - name: Prepare installable debug APK
         run: cp app/build/outputs/apk/debug/app-debug.apk "Ventoy-Android-${GITHUB_REF_NAME}-debug.apk"
