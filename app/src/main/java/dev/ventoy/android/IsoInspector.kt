@@ -62,7 +62,7 @@ object IsoInspector {
     }
 }
 
-internal data class IsoInspection(
+data class IsoInspection(
     val isIso9660: Boolean,
     val detail: String
 )
