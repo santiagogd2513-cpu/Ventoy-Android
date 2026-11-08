@@ -1,9 +1,10 @@
 package dev.ventoy.android
 
+import android.content.Intent
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
-import android.os.Bundle
 import android.net.Uri
+import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -32,6 +33,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +45,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private val VentoyColors = darkColorScheme(
     primary = Color(0xFF69A7FF),
@@ -69,10 +73,35 @@ private fun VentoyHomeScreen() {
     val usbManager = remember { context.getSystemService(UsbManager::class.java) }
     var devices by remember { mutableStateOf(usbManager.deviceList.values.toList()) }
     var selectedIso by remember { mutableStateOf<Uri?>(null) }
+    var isoStatus by remember { mutableStateOf("Selecciona una ISO para realizar una comprobación de solo lectura.") }
+
     val isoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
-        onResult = { selectedIso = it }
+        onResult = { uri ->
+            selectedIso = uri
+            if (uri != null) {
+                runCatching {
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                }
+            }
+        }
     )
+
+    LaunchedEffect(selectedIso) {
+        val uri = selectedIso ?: return@LaunchedEffect
+        isoStatus = "Comprobando descriptor ISO-9660…"
+        val result = withContext(Dispatchers.IO) {
+            runCatching { IsoInspector.inspect(context.contentResolver, uri) }
+        }
+        isoStatus = result.fold(
+            onSuccess = { it.detail },
+            onFailure = { "No se pudo inspeccionar el archivo: ${it.message ?: it.javaClass.simpleName}" }
+        )
+    }
+
     val nativeStatus = remember {
         runCatching { NativeBridge.getBridgeStatus() }
             .getOrElse { "Native bridge unavailable: ${it.javaClass.simpleName}" }
@@ -135,13 +164,13 @@ private fun VentoyHomeScreen() {
                             selectedIso?.lastPathSegment?.substringAfterLast('/') ?: "Ninguna imagen seleccionada",
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Spacer(Modifier.height(8.dp))
+                        Text(isoStatus, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                         Spacer(Modifier.height(12.dp))
                         Button(
                             onClick = { isoPicker.launch(arrayOf("*/*")) },
                             modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Seleccionar imagen")
-                        }
+                        ) { Text("Seleccionar imagen") }
                     }
                 }
             }
@@ -149,16 +178,14 @@ private fun VentoyHomeScreen() {
                 Card(shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                     Column(Modifier.padding(16.dp)) {
-                        Text("Preparación USB todavía no habilitada", fontWeight = FontWeight.SemiBold)
+                        Text("Motor Ventoy todavía no integrado", fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(6.dp))
-                        Text("Esta versión inicial solo consulta dispositivos USB y permite seleccionar un archivo. No modifica, formatea ni escribe en ninguna unidad.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(Modifier.height(8.dp))
                         Text(
-                            nativeStatus,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp
+                            "Esta fase añade inspección de solo lectura. Detectar una interfaz USB de almacenamiento o reconocer una ISO no significa que Android permita preparar la memoria. No se modifica, formatea ni escribe en ninguna unidad.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Spacer(Modifier.height(8.dp))
+                        Text(nativeStatus, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     }
                 }
                 Spacer(Modifier.height(24.dp))
@@ -169,6 +196,7 @@ private fun VentoyHomeScreen() {
 
 @Composable
 private fun UsbDeviceCard(device: UsbDevice) {
+    val inspection = remember(device) { UsbInspection.inspect(device) }
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
         Column(Modifier.padding(16.dp)) {
@@ -179,6 +207,29 @@ private fun UsbDeviceCard(device: UsbDevice) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text("VID: %04X  •  PID: %04X".format(device.vendorId, device.productId),
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                if (inspection.hasMassStorageInterface) "Interfaz USB Mass Storage detectada"
+                else "No se detectó una interfaz USB Mass Storage",
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.secondary
+            )
+            inspection.interfaces.forEach { usbInterface ->
+                Text(
+                    "Interfaz ${usbInterface.interfaceId}: clase %02X / subclase %02X / protocolo %02X · ${usbInterface.endpointCount} endpoint(s)".format(
+                        usbInterface.interfaceClass,
+                        usbInterface.interfaceSubclass,
+                        usbInterface.interfaceProtocol
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+            }
+            Text(
+                "Los descriptores USB no conceden acceso directo al disco ni autorización para escribir particiones.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp
+            )
         }
     }
 }
