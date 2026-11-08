@@ -37,3 +37,13 @@ jobs:
 
       - name: Compile debug and release
         run: gradle :app:assembleDebug :app:assembleRelease
+
+      - name: Upload APK build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ventoy-android-apks-${{ github.sha }}
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
