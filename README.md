@@ -45,7 +45,7 @@ This project is not an official Ventoy release. No upstream installer or boot pa
 
 ## Build
 
-Open this project in Android Studio with JDK 17 and Android SDK 35 installed. GitHub Actions uses Gradle 8.9, Android SDK 35, CMake 3.22.1 and NDK 27.2.12479018.
+Open this project in Android Studio with JDK 17 and Android SDK 35 installed. The repository includes the Gradle 8.9 wrapper (`./gradlew` on Linux/macOS or `gradlew.bat` on Windows). GitHub Actions uses Android SDK 35, CMake 3.22.1 and NDK 27.2.12479018.
 
 ## Continuous integration and releases
 
