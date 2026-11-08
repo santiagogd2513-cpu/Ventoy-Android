@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "dev.ventoy.android"
     compileSdk = 35
+    ndkVersion = "27.2.12479018"
     defaultConfig {
         applicationId = "dev.ventoy.android"
         minSdk = 26
