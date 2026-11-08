@@ -15,7 +15,7 @@ See [UPSTREAM_AUDIT.md](UPSTREAM_AUDIT.md) for the source revision and findings.
 
 ## Remaining Android integration constraints
 
-Android's public USB Host API exposes USB interfaces and endpoints; it does not grant arbitrary raw block-device access to a mass-storage LUN. A real installer must establish a supported, device-specific storage path before any partition or boot-sector operation can be implemented.
+Android's public USB Host API exposes USB interfaces and endpoints, not a generic `/dev/sdX` block device. A compatible mass-storage device can potentially be accessed by requesting USB permission, claiming its interface, and implementing USB Mass Storage Bulk-Only Transport with SCSI commands over bulk endpoints. This project currently performs descriptor inspection only; it has not implemented or validated that transport. Device-specific compatibility and safe error recovery must be established before any write path is considered.
 
 A SAF URI is not necessarily a local filesystem path or seekable file. ISO readers must use ContentResolver streams/file descriptors and handle providers that cannot seek. The current probe is read-only and only checks one ISO-9660 metadata signature.
 
@@ -32,6 +32,6 @@ A no-root workflow remains the preferred first target, but cannot be promised un
 
 ## Native integration direction
 
-Keep Android UI, SAF, and USB Host handling in Kotlin. Only move portable format or metadata code behind JNI after auditing dependencies and licenses. Linux-specific device I/O must be replaced by a separately validated Android storage adapter; do not compile Linux installer code unchanged with the NDK.
+Keep Android UI, SAF, and USB Host handling in Kotlin. A future storage adapter may implement the USB Mass Storage Bulk-Only Transport / SCSI protocol for compatible devices, initially read-only (INQUIRY, TEST UNIT READY, READ CAPACITY, and bounded READ commands). Add writes only after hardware validation, exact-target confirmation, partition-layout review, and read-back verification. Only move portable format or metadata code behind JNI after auditing dependencies and licenses. Linux-specific device I/O must be replaced by a separately validated Android storage adapter; do not compile Linux installer code unchanged with the NDK.
 
 All four default Android NDK ABIs currently compile in CI. Runtime validation on physical Android devices remains outstanding; ARM64 is the primary target for the first hardware validation.
