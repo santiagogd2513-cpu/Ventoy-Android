@@ -2,10 +2,11 @@
 
 ## Ventoy
 
-The upstream Ventoy project is maintained at https://github.com/ventoy/Ventoy.
-Its repository includes a GNU General Public License version 3 notice in its `COPYING` file. Before importing or adapting upstream source or binary components, this project must preserve the applicable license texts, copyright notices, source-offer obligations, and any component-specific licenses.
+Upstream project: https://github.com/ventoy/Ventoy
 
-No upstream Ventoy source code or binary payload is included in the initial Android scaffold.
+The Android port audit inspected upstream revision `74cff34240dca6991b79c6656770670da7b0c39e`. The upstream repository contains a GNU General Public License version 3 text in `COPYING`; inspected Ventoy installer and Linux utility sources carry GPL-3.0-or-later notices. GRUB and other bundled components may have separate notices and terms.
+
+No upstream installer source, GRUB source, boot image, or binary payload has been copied into this Android application yet. Before importing or distributing adapted components, preserve their copyright and license notices, include the applicable license texts, satisfy corresponding-source obligations, and audit each bundled component separately. Do not assume every file in the upstream repository has identical licensing.
 
 ## AndroidX, Kotlin and Jetpack Compose
 
