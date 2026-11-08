@@ -3,8 +3,11 @@ package dev.ventoy.android
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Bundle
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -65,6 +68,15 @@ private fun VentoyHomeScreen() {
     val context = LocalContext.current
     val usbManager = remember { context.getSystemService(UsbManager::class.java) }
     var devices by remember { mutableStateOf(usbManager.deviceList.values.toList()) }
+    var selectedIso by remember { mutableStateOf<Uri?>(null) }
+    val isoPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { selectedIso = it }
+    )
+    val nativeStatus = remember {
+        runCatching { NativeBridge.getBridgeStatus() }
+            .getOrElse { "Native bridge unavailable: ${it.javaClass.simpleName}" }
+    }
 
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         LazyColumn(
@@ -119,8 +131,17 @@ private fun VentoyHomeScreen() {
                             Text("  Imágenes ISO", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
                         }
                         Spacer(Modifier.height(8.dp))
-                        Text("La selección de imágenes ISO se habilitará mediante el selector seguro de archivos de Android.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            selectedIso?.lastPathSegment?.substringAfterLast('/') ?: "Ninguna imagen seleccionada",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Button(
+                            onClick = { isoPicker.launch(arrayOf("*/*")) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Seleccionar imagen")
+                        }
                     }
                 }
             }
@@ -130,8 +151,14 @@ private fun VentoyHomeScreen() {
                     Column(Modifier.padding(16.dp)) {
                         Text("Preparación USB todavía no habilitada", fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(6.dp))
-                        Text("Esta versión inicial solo consulta los dispositivos USB conectados. No modifica, formatea ni escribe en ninguna unidad.",
+                        Text("Esta versión inicial solo consulta dispositivos USB y permite seleccionar un archivo. No modifica, formatea ni escribe en ninguna unidad.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            nativeStatus,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 12.sp
+                        )
                     }
                 }
                 Spacer(Modifier.height(24.dp))
