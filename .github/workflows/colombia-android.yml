@@ -13,8 +13,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -25,6 +25,7 @@ jobs:
           curl -fL --retry 3 "https://github.com/godotengine/godot-builds/releases/download/$V/Godot_v${V}_linux.x86_64.zip" -o godot.zip
           unzip -q godot.zip
           sudo install "Godot_v${V}_linux.x86_64" /usr/local/bin/godot
+          godot --version
           curl -fL --retry 3 "https://github.com/godotengine/godot-builds/releases/download/$V/Godot_v${V}_export_templates.tpz" -o templates.zip
           unzip -q templates.zip
           mkdir -p ~/.local/share/godot/export_templates
@@ -32,7 +33,11 @@ jobs:
       - name: Configure Android SDK and debug signing
         run: |
           set -eux
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          export ANDROID_HOME="$SDK"
+          MANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -n "$MANAGER"
+          "$MANAGER" --sdk_root="$SDK" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
           mkdir -p ~/.android ~/.config/godot
           keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           printf '[gd_resource type="EditorSettings" format=3]\n[resource]\nexport/android/java_sdk_path = "%s"\nexport/android/android_sdk_path = "%s"\nexport/android/debug_keystore = "%s"\n' "$JAVA_HOME" "$ANDROID_HOME" "$HOME/.android/debug.keystore" > ~/.config/godot/editor_settings-4.4.tres
