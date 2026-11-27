@@ -1,0 +1,55 @@
+name: Colombia 2015 Android
+on:
+  push:
+    branches: [colombia-2015]
+    paths: ['Colombia2015/**', '.github/workflows/colombia-android.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: colombia-android
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Godot and templates
+        run: |
+          set -eux
+          V=4.4.1-stable
+          curl -fL --retry 3 "https://github.com/godotengine/godot-builds/releases/download/$V/Godot_v${V}_linux.x86_64.zip" -o godot.zip
+          unzip -q godot.zip
+          sudo install "Godot_v${V}_linux.x86_64" /usr/local/bin/godot
+          curl -fL --retry 3 "https://github.com/godotengine/godot-builds/releases/download/$V/Godot_v${V}_export_templates.tpz" -o templates.zip
+          unzip -q templates.zip
+          mkdir -p ~/.local/share/godot/export_templates
+          mv templates ~/.local/share/godot/export_templates/4.4.1.stable
+      - name: Configure Android SDK and debug signing
+        run: |
+          set -eux
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          mkdir -p ~/.android ~/.config/godot
+          keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          printf '[gd_resource type="EditorSettings" format=3]\n[resource]\nexport/android/java_sdk_path = "%s"\nexport/android/android_sdk_path = "%s"\nexport/android/debug_keystore = "%s"\n' "$JAVA_HOME" "$ANDROID_HOME" "$HOME/.android/debug.keystore" > ~/.config/godot/editor_settings-4.4.tres
+      - name: Validate project and smoke test
+        run: |
+          set -o pipefail
+          godot --headless --path Colombia2015 --editor --import --quit 2>&1 | tee import.log
+          godot --headless --path Colombia2015 --quit-after 60 2>&1 | tee smoke.log
+          if grep -E 'SCRIPT ERROR|Parse Error|ERROR:' import.log smoke.log; then exit 1; fi
+      - name: Export APK
+        run: |
+          mkdir -p build
+          godot --headless --path Colombia2015 --export-debug Android "$PWD/build/Colombia2015.apk"
+          test -s build/Colombia2015.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify build/Colombia2015.apk
+      - name: Publish APK directly
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "colombia-2015-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" build/Colombia2015.apk --target "$GITHUB_SHA" --title "Colombia 2015 Android — build ${GITHUB_RUN_NUMBER}" --notes "Phase 1 prototype, debug signed." --prerelease
