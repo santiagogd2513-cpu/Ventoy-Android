@@ -40,7 +40,7 @@ jobs:
           "$MANAGER" --sdk_root="$SDK" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
           mkdir -p ~/.android ~/.config/godot
           keytool -genkeypair -keystore ~/.android/debug.keystore -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          printf '[gd_resource type="EditorSettings" format=3]\n[resource]\nexport/android/java_sdk_path = "%s"\nexport/android/android_sdk_path = "%s"\nexport/android/debug_keystore = "%s"\n' "$JAVA_HOME" "$ANDROID_HOME" "$HOME/.android/debug.keystore" > ~/.config/godot/editor_settings-4.4.tres
+          printf '[gd_resource type="EditorSettings" format=3]\n[resource]\nexport/android/java_sdk_path = "%s"\nexport/android/android_sdk_path = "%s"\nexport/android/debug_keystore = "%s"\nexport/android/debug_keystore_user = "androiddebugkey"\nexport/android/debug_keystore_pass = "android"\n' "$JAVA_HOME" "$ANDROID_HOME" "$HOME/.android/debug.keystore" > ~/.config/godot/editor_settings-4.4.tres
       - name: Validate project and smoke test
         run: |
           set -o pipefail
@@ -50,7 +50,12 @@ jobs:
       - name: Export APK
         run: |
           mkdir -p build
-          godot --headless --path Colombia2015 --export-debug Android "$PWD/build/Colombia2015.apk"
+          test -s "$HOME/.local/share/godot/export_templates/4.4.1.stable/android_debug.apk"
+          export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="$HOME/.android/debug.keystore"
+          export GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey
+          export GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
+          "$ANDROID_HOME/platform-tools/adb" start-server
+          godot --headless --verbose --path Colombia2015 --export-debug Android "$PWD/build/Colombia2015.apk"
           test -s build/Colombia2015.apk
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify build/Colombia2015.apk
       - name: Publish APK directly
