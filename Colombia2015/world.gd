@@ -8,6 +8,7 @@ var sun := DirectionalLight3D.new()
 var terrain_material := StandardMaterial3D.new()
 var road_material := StandardMaterial3D.new()
 var clock := 10.0
+var last_center := Vector2i(999999,999999)
 var touch := Vector2.ZERO
 func road_x(z: float) -> float:
 	return sin(z * 0.006) * 45.0
@@ -45,10 +46,8 @@ func mesh_from(vertices: PackedVector3Array, indices: PackedInt32Array, material
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for v in vertices:
 		st.add_vertex(v)
-	for i in range(0, indices.size(), 3):
-		st.add_index(indices[i])
-		st.add_index(indices[i + 2])
-		st.add_index(indices[i + 1])
+	for i in indices:
+		st.add_index(i)
 	st.generate_normals()
 	var node := MeshInstance3D.new()
 	node.mesh = st.commit()
@@ -86,6 +85,9 @@ func make_tile(key: Vector2i) -> Node3D:
 	return root
 func refresh() -> void:
 	var center := Vector2i(floori(camera.position.x/TILE),floori(camera.position.z/TILE))
+	if center == last_center:
+		return
+	last_center = center
 	for y in range(center.y-2,center.y+3):
 		for x in range(center.x-2,center.x+3):
 			var key := Vector2i(x,y)
@@ -103,7 +105,7 @@ func _process(delta: float) -> void:
 	camera.position.z += speed * 24.0 * delta
 	camera.position.x = road_x(camera.position.z)
 	camera.position.y = elevation(camera.position.x,camera.position.z) + 5.0
-	camera.rotation.y = -atan2(road_x(camera.position.z)-road_x(camera.position.z-10.0),10.0)
+	camera.rotation.y = atan2(road_x(camera.position.z)-road_x(camera.position.z-10.0),10.0)
 	clock = fmod(clock + delta * 0.015,24.0)
-	sun.rotation_degrees = Vector3(-clock * 15.0 + 90.0,-35.0,0.0)
+	sun.rotation_degrees = Vector3(-sin((clock - 6.0) * PI / 12.0) * 80.0,-35.0,0.0)
 	refresh()
